@@ -71,3 +71,23 @@ minimal-sample-data.sql
 *.crt
 *.p12
 *.pfx
+
+# Documentation cleanup - ignore redundant docs
+API_ENDPOINTS.md
+API_FIXES_SUMMARY.md
+API_NOTIFICATIONS.md
+API_TESTING_COMPREHENSIVE_REPORT.md
+CLOUDFLARE_DEPLOYMENT_GUIDE.md
+COMPLETE_SETUP_FROM_START.md
+DEPLOYMENT_CHECKLIST.md
+DEPLOYMENT_SUCCESS_REPORT.md
+DEVELOPMENT_IMPROVEMENTS.md
+NOTIFICATION_SYSTEM.md
+PRODUCTION_READINESS.md
+QUICK_START_NEXT_STEPS.md
+SECURE_FILE_UPLOAD.md
+
+# Test and development files
+api-examples.http
+test-endpoints.js
+worker-configuration.d.ts

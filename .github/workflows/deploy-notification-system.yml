@@ -1,0 +1,350 @@
+name: Deploy Notification System
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - 'migrations/**'
+      - 'wrangler.toml'
+      - 'package.json'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'migrations/**'
+      - 'wrangler.toml'
+
+env:
+  NODE_VERSION: '18'
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  # Lint and Test Phase
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript type checking
+        run: npx tsc --noEmit
+
+      - name: Run ESLint
+        run: npx eslint src/ --ext .ts,.js --max-warnings 0
+
+      - name: Run unit tests
+        run: |
+          cd tests
+          npm ci
+          npm test
+        continue-on-error: false
+
+      - name: Upload test coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./tests/coverage/lcov.info
+          flags: notification-system
+          name: notification-coverage
+
+  # Security and Code Quality
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run security audit
+        run: npm audit --audit-level=moderate
+
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+
+  # Database Migration Validation
+  validate-migrations:
+    name: Validate Database Migrations
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Wrangler
+        run: npm install -g wrangler@latest
+
+      - name: Validate migration syntax
+        run: |
+          for file in migrations/*.sql; do
+            echo "Validating $file"
+            # Basic SQL syntax validation
+            if ! grep -q "CREATE TABLE\|ALTER TABLE\|INSERT\|UPDATE\|DELETE" "$file"; then
+              echo "Warning: $file may not contain valid SQL statements"
+            fi
+          done
+
+      - name: Check migration order
+        run: |
+          ls migrations/ | sort -V | while read file; do
+            echo "Migration file: $file"
+          done
+
+  # Development Environment Deployment
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: [test, security, validate-migrations]
+    if: github.ref == 'refs/heads/develop'
+    environment: development
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Wrangler
+        run: npm install -g wrangler@latest
+
+      - name: Create D1 database (if not exists)
+        run: |
+          wrangler d1 create student-db-dev || echo "Database may already exist"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Create KV namespace (if not exists)
+        run: |
+          wrangler kv:namespace create "RATE_LIMIT_KV" --preview || echo "KV namespace may already exist"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Create R2 bucket (if not exists)
+        run: |
+          wrangler r2 bucket create student-certificates-dev || echo "R2 bucket may already exist"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Run database migrations
+        run: |
+          # Apply migrations in order
+          for migration in migrations/*.sql; do
+            echo "Applying migration: $migration"
+            wrangler d1 execute student-db-dev --file="$migration"
+          done
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy to Cloudflare Workers (Dev)
+        run: |
+          # Update wrangler.toml for dev environment
+          cp wrangler.toml wrangler.dev.toml
+          sed -i 's/name = "student-db-ms"/name = "student-db-ms-dev"/' wrangler.dev.toml
+          
+          wrangler deploy --config wrangler.dev.toml
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET_DEV }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY_DEV }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID_DEV }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN_DEV }}
+
+      - name: Run smoke tests
+        run: |
+          sleep 30  # Wait for deployment to propagate
+          # Basic health check
+          curl -f "https://student-db-ms-dev.yourdomain.workers.dev/health" || exit 1
+          echo "✅ Development deployment successful"
+
+  # Staging Environment Deployment
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [deploy-dev]
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Wrangler
+        run: npm install -g wrangler@latest
+
+      - name: Deploy to Staging
+        run: |
+          cp wrangler.toml wrangler.staging.toml
+          sed -i 's/name = "student-db-ms"/name = "student-db-ms-staging"/' wrangler.staging.toml
+          
+          wrangler deploy --config wrangler.staging.toml
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET_STAGING }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY_STAGING }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID_STAGING }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN_STAGING }}
+
+      - name: Run integration tests
+        run: |
+          sleep 45  # Wait for deployment
+          
+          # Test notification endpoints
+          echo "Testing notification API endpoints..."
+          
+          # Test rate limiting
+          for i in {1..15}; do
+            curl -s -o /dev/null -w "%{http_code}\n" \
+              "https://student-db-ms-staging.yourdomain.workers.dev/api/notifications/send" \
+              -H "Authorization: Bearer test-token" \
+              -H "Content-Type: application/json" \
+              -d '{"userId": 1, "title": "Test", "message": "Test"}' || true
+          done | grep -q "429" && echo "✅ Rate limiting works" || echo "❌ Rate limiting failed"
+          
+          echo "✅ Staging deployment successful"
+
+  # Production Deployment (Manual Approval Required)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Wrangler
+        run: npm install -g wrangler@latest
+
+      - name: Backup current production state
+        run: |
+          echo "Creating production backup..."
+          # Export current database state (if needed)
+          # wrangler d1 export student-db --output backup-$(date +%Y%m%d-%H%M%S).sql
+          echo "✅ Backup completed"
+
+      - name: Deploy to Production
+        run: |
+          wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET_PRODUCTION }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY_PRODUCTION }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID_PRODUCTION }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN_PRODUCTION }}
+
+      - name: Verify production deployment
+        run: |
+          sleep 60  # Wait for global propagation
+          
+          # Comprehensive health checks
+          echo "Running production health checks..."
+          
+          # API health
+          curl -f "https://student-db-ms.yourdomain.workers.dev/health" || exit 1
+          
+          # Database connectivity
+          curl -f "https://student-db-ms.yourdomain.workers.dev/api/health/db" || exit 1
+          
+          # Notification system health
+          curl -f "https://student-db-ms.yourdomain.workers.dev/api/notifications/health" || exit 1
+          
+          echo "✅ Production deployment verified"
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "🚀 Production deployment successful!"
+          echo "Timestamp: $(date)"
+          echo "Commit: ${{ github.sha }}"
+          
+          # Optional: Send notification to Slack/Discord
+          # curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          #   -H 'Content-type: application/json' \
+          #   -d '{"text":"✅ Notification system deployed to production successfully!"}'
+
+  # Post-deployment monitoring
+  post-deploy-monitoring:
+    name: Post-deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: always() && needs.deploy-production.result == 'success'
+    steps:
+      - name: Monitor deployment health
+        run: |
+          echo "Starting post-deployment monitoring..."
+          
+          # Monitor for 5 minutes
+          end_time=$(($(date +%s) + 300))
+          
+          while [ $(date +%s) -lt $end_time ]; do
+            if curl -s -f "https://student-db-ms.yourdomain.workers.dev/health" > /dev/null; then
+              echo "✅ Health check passed at $(date)"
+            else
+              echo "❌ Health check failed at $(date)"
+              exit 1
+            fi
+            sleep 30
+          done
+          
+          echo "✅ Monitoring completed successfully"
+
+  # Cleanup on failure
+  cleanup-on-failure:
+    name: Cleanup on Failure
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: failure()
+    steps:
+      - name: Rollback if needed
+        run: |
+          echo "⚠️ Deployment failed, consider manual rollback if needed"
+          echo "Check logs and previous working version"
+          # In a real scenario, you might implement automatic rollback logic

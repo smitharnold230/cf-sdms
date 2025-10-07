@@ -1,0 +1,56 @@
+name = "student-db-ms"
+main = "src/index.ts"
+compatibility_date = "2025-10-05"
+
+# D1 database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "student_db"
+database_id = "6e4f0bab-ce93-47f3-ae9c-4fc7b713c4a7"
+
+# R2 bucket binding for file storage
+[[r2_buckets]]
+binding = "CERT_BUCKET"
+bucket_name = "studentcertificates"
+
+# KV namespace for rate limiting
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "5a7f40dcd29b47018c5fdc163b784404"
+preview_id = "55e472f8adf94902b8cea01f0abf2660"
+
+# KV namespace for caching
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "5316346822a545c0a535a82868875ed6"
+preview_id = "25cca5b407a24a3bb9bd6298553fe73d"
+
+# Durable Objects
+[[durable_objects.bindings]]
+name = "NOTIFICATION_MANAGER"
+class_name = "NotificationManager"
+
+# Environment variables (non-sensitive)
+[vars]
+JWT_ALG = "HS256"
+TOKEN_TTL_SECONDS = 3600
+SENDGRID_FROM_EMAIL = "noreply@sdms.workers.dev"
+SENDGRID_FROM_NAME = "Student Development Management System"
+TWILIO_FROM_NUMBER = "+1234567890"
+APP_BASE_URL = "https://sdms.workers.dev"
+ENVIRONMENT = "production"
+LOG_LEVEL = "info"
+
+# Secrets (set via wrangler secret put <KEY>)
+# JWT_SECRET - Strong random key for JWT signing
+# SENDGRID_API_KEY - SendGrid API key for email notifications
+# TWILIO_ACCOUNT_SID - Twilio account SID for SMS
+# TWILIO_AUTH_TOKEN - Twilio auth token for SMS
+# VIRUS_SCAN_API_KEY - VirusTotal or similar API key
+# ANALYTICS_TOKEN - Optional analytics service token
+# ALERT_WEBHOOK_URL - Optional webhook for system alerts
+
+# Durable Object migrations
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["NotificationManager"]

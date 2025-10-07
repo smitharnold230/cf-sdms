@@ -1,0 +1,33 @@
+{
+  "name": "student-db-ms",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "migrate:apply": "wrangler d1 migrations apply student_db",
+    "migrate:list": "wrangler d1 migrations list student_db",
+    "migrate:new": "node scripts/new-migration.cjs",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint 'src/**/*.ts'",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc && wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.8.1",
+    "@typescript-eslint/parser": "^8.8.1",
+    "eslint": "^9.10.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.42.0"
+  },
+  "dependencies": {
+    "itty-router": "^4.0.23",
+    "jsonwebcrypto": "^1.2.2",
+    "zod": "^3.23.8"
+  }
+}

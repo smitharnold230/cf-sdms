@@ -12,7 +12,7 @@ import {
   UploadCertificateData
 } from '@/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8787';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://student-db-ms.smitharnold230.workers.dev';
 
 // Create axios instance
 const api = axios.create({
@@ -138,12 +138,14 @@ export const eventsApi = {
 
 export const workshopsApi = {
   getWorkshops: async (): Promise<{ workshops: Workshop[] }> => {
-    // Workshops are included in events response
-    const response = await api.get<Event[]>('/api/events');
-    const workshops = response.data.flatMap(event => 
-      event.workshops?.map(workshop => ({ ...workshop, event_id: event.id })) || []
-    );
-    return { workshops };
+    // Get workshops from a separate endpoint if available, otherwise return empty array
+    try {
+      const response = await api.get<Workshop[]>('/api/workshops');
+      return { workshops: response.data };
+    } catch (error) {
+      // If workshops endpoint doesn't exist, return empty array
+      return { workshops: [] };
+    }
   },
 
   createWorkshop: async (eventId: number, data: Partial<Workshop>): Promise<{ workshop: Workshop }> => {

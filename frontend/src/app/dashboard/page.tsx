@@ -3,6 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import StudentDashboard from '@/components/dashboard/StudentDashboard';
 import FacultyDashboard from '@/components/dashboard/FacultyDashboard';
+import AdminPanel from '@/components/dashboard/AdminPanel';
 import Layout from '@/components/Layout';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -33,7 +34,9 @@ export default function DashboardPage() {
 
   return (
     <Layout>
-      {user.role === 'faculty' ? <FacultyDashboard /> : <StudentDashboard />}
+      {user.role === 'admin' ? <AdminPanel /> : 
+       user.role === 'faculty' ? <FacultyDashboard /> : 
+       <StudentDashboard />}
     </Layout>
   );
 }

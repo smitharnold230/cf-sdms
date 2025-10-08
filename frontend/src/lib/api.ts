@@ -113,6 +113,26 @@ export const facultyApi = {
     const response = await api.get('/api/faculty/pending');
     return response.data;
   },
+
+  createEvent: async (eventData: any): Promise<any> => {
+    const response = await api.post('/api/faculty/events', eventData);
+    return response.data;
+  },
+
+  createWorkshop: async (workshopData: any): Promise<any> => {
+    const response = await api.post('/api/faculty/workshops', workshopData);
+    return response.data;
+  },
+
+  approveCertificate: async (certificateId: number): Promise<any> => {
+    const response = await api.put(`/api/faculty/approve/${certificateId}`);
+    return response.data;
+  },
+
+  rejectCertificate: async (certificateId: number, reason?: string): Promise<any> => {
+    const response = await api.put(`/api/faculty/reject/${certificateId}`, { reason });
+    return response.data;
+  },
 };
 
 // Certificates API

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { dashboardApi, facultyApi } from '@/lib/api';
 import { User } from '@/types';
+import { useRouter } from 'next/navigation';
 import { 
   Users, 
   FileCheck, 
@@ -22,6 +23,7 @@ interface FacultyDashboardStats {
 
 export default function FacultyDashboard() {
   const { user } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState<FacultyDashboardStats>({
     pendingReviews: 0,
     totalStudents: 0,
@@ -225,15 +227,24 @@ export default function FacultyDashboard() {
         <div className="card">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
           <div className="space-y-4">
-            <button className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={() => router.push('/review')}
+              className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
               <FileCheck className="h-5 w-5 text-orange-600 mr-3" />
               <span className="text-sm font-medium">Review Certificates</span>
             </button>
-            <button className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={() => router.push('/events')}
+              className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
               <Calendar className="h-5 w-5 text-green-600 mr-3" />
               <span className="text-sm font-medium">Create Event</span>
             </button>
-            <button className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={() => router.push('/workshops')}
+              className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
               <BookOpen className="h-5 w-5 text-purple-600 mr-3" />
               <span className="text-sm font-medium">Create Workshop</span>
             </button>

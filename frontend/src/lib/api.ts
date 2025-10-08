@@ -79,6 +79,24 @@ export const usersApi = {
   },
 };
 
+// Dashboard API
+export const dashboardApi = {
+  getStudentDashboard: async (): Promise<any> => {
+    const response = await api.get('/api/student/dashboard');
+    return response.data;
+  },
+
+  getFacultyDashboard: async (): Promise<any> => {
+    const response = await api.get('/api/faculty/dashboard');
+    return response.data;
+  },
+
+  getDashboard: async (): Promise<any> => {
+    const response = await api.get('/api/dashboard');
+    return response.data;
+  },
+};
+
 // Certificates API
 export const certificatesApi = {
   uploadCertificate: async (data: UploadCertificateData): Promise<{ certificate: Certificate }> => {

@@ -117,6 +117,26 @@ router.get('/api/student/dashboard', async (req: Request, env: Env) => {
   return DashboardAPI.getStudentDashboard(req, env, ctx);
 });
 
+// Faculty Dashboard
+router.get('/api/faculty/dashboard', async (req: Request, env: Env) => {
+  const ctx = await authenticate(req, env);
+  requireRole(ctx, ['faculty', 'admin']);
+  return DashboardAPI.getFacultyDashboard(req, env, ctx);
+});
+
+// General Dashboard (role-agnostic)
+router.get('/api/dashboard', async (req: Request, env: Env) => {
+  const ctx = await authenticate(req, env);
+  if (ctx.role === 'student') {
+    return DashboardAPI.getStudentDashboard(req, env, ctx);
+  } else if (ctx.role === 'faculty') {
+    return DashboardAPI.getFacultyDashboard(req, env, ctx);
+  } else if (ctx.role === 'admin') {
+    return DashboardAPI.getFacultyDashboard(req, env, ctx);
+  }
+  return json({ error: 'Invalid role' }, 400);
+});
+
 router.post('/api/faculty/events', async (req: Request, env: Env) => {
   const ctx = await authenticate(req, env);
   requireRole(ctx, ['faculty', 'admin']);

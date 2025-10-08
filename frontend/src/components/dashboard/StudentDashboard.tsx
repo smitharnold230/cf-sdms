@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Certificate, Event, Workshop, PointsEntry, Notification } from '@/types';
-import { certificatesApi, eventsApi, workshopsApi, pointsApi, notificationsApi } from '@/lib/api';
+import { certificatesApi, eventsApi, workshopsApi, pointsApi, notificationsApi, dashboardApi } from '@/lib/api';
 import { formatDistanceToNow, parseISO, isBefore, addDays } from 'date-fns';
 import { 
   Award, 
@@ -50,6 +50,23 @@ export default function StudentDashboard() {
     try {
       setLoading(true);
       
+      // Use centralized dashboard API if user is faculty or admin
+      if (user.role === 'faculty' || user.role === 'admin') {
+        const dashboardResponse = await dashboardApi.getDashboard();
+        if (dashboardResponse.success) {
+          const data = dashboardResponse.data;
+          setStats({
+            totalPoints: 0, // Faculty doesn't have points
+            pendingCertificates: data.pendingReviews || 0,
+            approvedCertificates: 0,
+            upcomingDeadlines: 0,
+          });
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Original student dashboard logic
       // Fetch user certificates
       const certsResponse = await certificatesApi.getUserCertificates(user.id);
       setCertificates(certsResponse.certificates);

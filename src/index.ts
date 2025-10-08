@@ -221,6 +221,11 @@ router.get('/api/events', async (req: Request, env: Env) => {
   return EventsAPI.getEvents(req, env);
 });
 
+router.get('/api/workshops', async (req: Request, env: Env) => {
+  const ctx = await authenticate(req, env);
+  return EventsAPI.getWorkshops(req, env);
+});
+
 router.put('/api/faculty/approve/:id', async (req: any, env: Env) => {
   const ctx = await authenticate(req, env);
   requireRole(ctx, ['faculty', 'admin']);

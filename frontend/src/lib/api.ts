@@ -133,6 +133,16 @@ export const facultyApi = {
     const response = await api.put(`/api/faculty/reject/${certificateId}`, { reason });
     return response.data;
   },
+
+  getEvents: async (): Promise<any> => {
+    const response = await api.get('/api/events');
+    return response.data;
+  },
+
+  getWorkshops: async (): Promise<any> => {
+    const response = await api.get('/api/workshops');
+    return response.data;
+  },
 };
 
 // Certificates API

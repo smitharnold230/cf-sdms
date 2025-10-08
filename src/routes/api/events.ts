@@ -123,3 +123,34 @@ export async function getEvents(request: Request, env: Env): Promise<Response> {
     data: events.results
   });
 }
+
+export async function getWorkshops(request: Request, env: Env): Promise<Response> {
+  try {
+    const workshops = await env.DB.prepare(`
+      SELECT 
+        w.id,
+        w.title,
+        w.description,
+        w.start_datetime,
+        w.end_datetime,
+        w.capacity,
+        w.created_at,
+        u.full_name as created_by_name
+      FROM workshops w
+      LEFT JOIN users u ON w.created_by = u.id
+      ORDER BY w.start_datetime DESC
+    `).all();
+    
+    return json({
+      success: true,
+      data: workshops.results
+    });
+  } catch (error) {
+    console.error('Error fetching workshops:', error);
+    return json({
+      success: false,
+      data: [],
+      error: 'Failed to fetch workshops'
+    });
+  }
+}

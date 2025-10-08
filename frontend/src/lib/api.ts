@@ -97,6 +97,24 @@ export const dashboardApi = {
   },
 };
 
+// Faculty API
+export const facultyApi = {
+  getStudents: async (): Promise<{ success: boolean; students: User[]; count: number }> => {
+    const response = await api.get('/api/faculty/students');
+    return response.data;
+  },
+
+  getStudentDetails: async (studentId: number): Promise<any> => {
+    const response = await api.get(`/api/faculty/students/${studentId}`);
+    return response.data;
+  },
+
+  getPendingCertificates: async (): Promise<any> => {
+    const response = await api.get('/api/faculty/pending');
+    return response.data;
+  },
+};
+
 // Certificates API
 export const certificatesApi = {
   uploadCertificate: async (data: UploadCertificateData): Promise<{ certificate: Certificate }> => {

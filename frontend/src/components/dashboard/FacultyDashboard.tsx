@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { dashboardApi } from '@/lib/api';
+import { dashboardApi, facultyApi } from '@/lib/api';
+import { User } from '@/types';
 import { 
   Users, 
   FileCheck, 
@@ -27,7 +28,9 @@ export default function FacultyDashboard() {
     eventsCreated: 0,
     workshopsCreated: 0,
   });
+  const [students, setStudents] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showStudents, setShowStudents] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -56,6 +59,25 @@ export default function FacultyDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const response = await facultyApi.getStudents();
+      if (response.success) {
+        setStudents(response.students);
+      }
+    } catch (error) {
+      console.error('Failed to fetch students:', error);
+      toast.error('Failed to load students');
+    }
+  };
+
+  const handleViewStudents = () => {
+    if (!showStudents && students.length === 0) {
+      fetchStudents();
+    }
+    setShowStudents(!showStudents);
   };
 
   if (loading) {
@@ -93,14 +115,22 @@ export default function FacultyDashboard() {
 
         {/* Total Students */}
         <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Users className="h-8 w-8 text-blue-600" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Users className="h-8 w-8 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Total Students</p>
+                <p className="text-2xl font-semibold text-gray-900">{stats.totalStudents}</p>
+              </div>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Students</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.totalStudents}</p>
-            </div>
+            <button
+              onClick={handleViewStudents}
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+            >
+              {showStudents ? 'Hide' : 'View List'}
+            </button>
           </div>
         </div>
 
@@ -130,6 +160,65 @@ export default function FacultyDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Student List */}
+      {showStudents && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Students List</h2>
+          {students.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Joined
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {students.map((student) => (
+                    <tr key={student.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{student.full_name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{student.email}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">
+                          {new Date(student.created_at).toLocaleDateString()}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button className="text-blue-600 hover:text-blue-700 mr-3">
+                          View Details
+                        </button>
+                        <button className="text-green-600 hover:text-green-700">
+                          View Certificates
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center text-gray-500 py-8">
+              <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <p>No students found</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow p-6">

@@ -137,6 +137,73 @@ router.get('/api/dashboard', async (req: Request, env: Env) => {
   return json({ error: 'Invalid role' }, 400);
 });
 
+// Faculty Student Management
+router.get('/api/faculty/students', async (req: Request, env: Env) => {
+  const ctx = await authenticate(req, env);
+  requireRole(ctx, ['faculty', 'admin']);
+  
+  try {
+    const { results } = await env.DB.prepare(`
+      SELECT id, email, full_name, created_at, updated_at
+      FROM users 
+      WHERE role = 'student'
+      ORDER BY full_name
+    `).all();
+    
+    return json({
+      success: true,
+      students: results || [],
+      count: results?.length || 0
+    });
+  } catch (error: any) {
+    return json({ error: 'Failed to fetch students', details: error.message }, 500);
+  }
+});
+
+// Faculty - Get Student Details with Certificates
+router.get('/api/faculty/students/:id', async (req: any, env: Env) => {
+  const ctx = await authenticate(req, env);
+  requireRole(ctx, ['faculty', 'admin']);
+  const studentId = Number(req.params.id);
+  
+  try {
+    // Get student info
+    const student = await env.DB.prepare(`
+      SELECT id, email, full_name, created_at, updated_at
+      FROM users 
+      WHERE id = ? AND role = 'student'
+    `).bind(studentId).first();
+    
+    if (!student) {
+      return json({ error: 'Student not found' }, 404);
+    }
+    
+    // Get student certificates
+    const { results: certificates } = await env.DB.prepare(`
+      SELECT id, title, issued_date, status, created_at, reviewed_at, rejection_reason
+      FROM certificates 
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+    `).bind(studentId).all();
+    
+    // Get student points
+    const points = await env.DB.prepare(`
+      SELECT total_points
+      FROM user_points
+      WHERE user_id = ?
+    `).bind(studentId).first();
+    
+    return json({
+      success: true,
+      student,
+      certificates: certificates || [],
+      totalPoints: points?.total_points || 0
+    });
+  } catch (error: any) {
+    return json({ error: 'Failed to fetch student details', details: error.message }, 500);
+  }
+});
+
 router.post('/api/faculty/events', async (req: Request, env: Env) => {
   const ctx = await authenticate(req, env);
   requireRole(ctx, ['faculty', 'admin']);

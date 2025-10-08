@@ -17,7 +17,21 @@ export default function LoginPage() {
     try {
       setLoading(true);
       await login(data);
-      router.push('/');
+      
+      // Get user data to determine redirect
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        if (user.role === 'admin') {
+          router.push('/admin');
+        } else if (user.role === 'faculty') {
+          router.push('/dashboard');
+        } else {
+          router.push('/dashboard');
+        }
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error) {
       // Error handled by auth context
     } finally {

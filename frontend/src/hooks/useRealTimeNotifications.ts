@@ -26,7 +26,9 @@ export function useRealTimeNotifications(options: UseRealTimeNotificationsOption
     }
 
     try {
-      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://127.0.0.1:8787';
+      // Use production WebSocket URL
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://student-db-ms.smitharnold230.workers.dev';
+      const wsUrl = baseUrl.replace('https://', 'wss://').replace('http://', 'ws://');
       const token = localStorage.getItem('token');
       
       if (!token) {

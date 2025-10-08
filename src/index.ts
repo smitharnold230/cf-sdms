@@ -4,6 +4,7 @@ import * as AuthRoutes from './routes/auth';
 import * as UserRoutes from './routes/users';
 import * as CertRoutes from './routes/certificates';
 import { authenticate, requireRole } from './middleware/auth';
+import { addCORSHeaders } from './utils/production';
 
 // Import new API route handlers
 import * as AuthAPI from './routes/api/auth';
@@ -258,16 +259,46 @@ router.get('/monitoring/metrics', async (req: Request, env: Env, ctx: ExecutionC
 
 router.all('*', () => notFound());
 
+// Handle CORS preflight requests
+router.options('*', () => {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Request-ID',
+      'Access-Control-Max-Age': '86400'
+    }
+  });
+});
+
 // Export Durable Objects
 export { NotificationManager } from './durableObjects/NotificationManager';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
+      // Handle CORS preflight requests
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Request-ID',
+            'Access-Control-Max-Age': '86400'
+          }
+        });
+      }
+
       // itty router passes env as second arg
-      return await router.handle(request, env);
+      const response = await router.handle(request, env);
+      
+      // Add CORS headers to all responses
+      return addCORSHeaders(response, request.headers.get('Origin') || undefined);
     } catch (err) {
-      return errorResponse(err);
+      const errorResp = errorResponse(err);
+      return addCORSHeaders(errorResp, request.headers.get('Origin') || undefined);
     }
   }
 };

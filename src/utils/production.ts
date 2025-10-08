@@ -242,7 +242,10 @@ export function addCORSHeaders(response: Response, origin?: string): Response {
   // In production, be more restrictive with CORS
   const allowedOrigins = [
     'https://sdms.workers.dev',
-    'https://your-frontend-domain.com'
+    'https://42a0e7db.sdms-frontend.pages.dev',
+    'https://sdms-frontend.pages.dev',
+    'http://localhost:3000', // For local development
+    'http://127.0.0.1:3000'
   ];
   
   if (origin && allowedOrigins.includes(origin)) {
